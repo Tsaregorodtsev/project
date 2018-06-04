@@ -66,7 +66,6 @@ const char VT_CMD_FACSET  = 'F';
 const char VT_CMD_SAVE    = 'W'; 
 const char VT_CMD_MESSAGE = 'M'; 
 const char VT_CMD_JUSTIFY = 'J'; 
-
 const char VT_CMD_TPAUSE  = 'P'; 
 const char VT_CMD_IANIM   = 'I'; 
 
@@ -312,10 +311,10 @@ uint8_t BT_executeCommand(uint8_t cmd, char *pd)
   {
       int16_t v = atoi(pd);
 
-      if (v < 0 || v > 10000)
-        sts = VT_ERR_DATA;
-      else
-      {
+      //if (v < 0 || v > 10000)
+        //sts = VT_ERR_DATA;
+      //else
+      //{
         if (cmd == VT_CMD_SPEED)
         {
           G.scrollSpeed = v;
@@ -328,18 +327,18 @@ uint8_t BT_executeCommand(uint8_t cmd, char *pd)
         }
       }
     }
-    break;
+//    break;
 
-  default:
-    sts = VT_ERR_CMD;
-    PRINT("CMD Error - ", cmd);
-    break;
+ // default:
+  //  sts = VT_ERR_CMD;
+   // PRINT("CMD Error - ", cmd);
+  //  break;
   }
 
-  newConfigAvailable = (sts == VT_ERR_OK && cmd != VT_CMD_MESSAGE);
+  //newConfigAvailable = (sts == VT_ERR_OK && cmd != VT_CMD_MESSAGE);
 
-  return(sts);
-}
+  //return(sts);
+//}
 
 void BT_getCommand(void)
 
@@ -410,31 +409,31 @@ void BT_getCommand(void)
       }
       break;
 
-    case ST_DATA:  
-      if (countBuf >= BUF_SIZE) 
-      {
-        PRINTS("\nBuffer overflow");
-        BT_sendACK(VT_ERR_DATA);
-        state = ST_IDLE;
-      }
-      else if (ch == VT_END && !prevEsc) 
-      {
-        PRINT("\nPkt end @", countBuf);
-        cBuf[countBuf] = '\0'; 
-        BT_sendACK(BT_executeCommand(cmd, cBuf));
-        state = ST_IDLE;
-      }
-      else if (!inEsc) 
-      {
-        PRINT("\nPkt cBuf[", countBuf); PRINT("]:", ch);
-        cBuf[countBuf++] = ch;
-      }
-      break;
+   // case ST_DATA:  
+      //if (countBuf >= BUF_SIZE) 
+     // {
+     //  PRINTS("\nBuffer overflow");
+     //   BT_sendACK(VT_ERR_DATA);
+     //   state = ST_IDLE;
+     // }
+    //  else if (ch == VT_END && !prevEsc) 
+     // {
+     //   PRINT("\nPkt end @", countBuf);
+      //  cBuf[countBuf] = '\0'; 
+      //  BT_sendACK(BT_executeCommand(cmd, cBuf));
+      //  state = ST_IDLE;
+     // }
+    //  else if (!inEsc) 
+    //  {
+    //    PRINT("\nPkt cBuf[", countBuf); PRINT("]:", ch);
+     //   cBuf[countBuf++] = ch;
+    //  }
+   //   break;
 
-    default:  
-      state = ST_IDLE;
-      BT_sendACK(VT_ERR_SEQ);
-      break;
+    //default:  
+      //state = ST_IDLE;
+      //BT_sendACK(VT_ERR_SEQ);
+     // break;
     }
   }
 }
