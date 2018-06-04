@@ -1,10 +1,10 @@
-
+//Kasutatud kogumeid
 #include <MD_Parola.h>
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include <EEPROM.h>
 
-
+// BT interface serial interface
 #define USE_ALTSOFTSERIAL 0
 
 #if USE_ALTSOFTSERIAL
@@ -13,30 +13,30 @@
 #include <SoftwareSerial.h>
 #endif
 
-
-#define MAX_DEVICES 12
+//Võetud kasutusel Arduino pinnid
+#define MAX_DEVICES 8
 #define CLK_PIN   13
 #define DATA_PIN  11
 #define CS_PIN    10
 
+//Võetud kasutusel Bluetooth pinnid
+const uint8_t BT_RECV_PIN = 3;   // Arduino receive -> Bluetooth TxD pin
+const uint8_t BT_SEND_PIN = 2;   // Arduino send -> Bluetooth RxD pin
+const char BT_NAME[] = "Parola";
 
-const uint8_t BT_RECV_PIN = 3;   
-const uint8_t BT_SEND_PIN = 2;   
-const char BT_NAME[] = "VT";
+//Bluetooth moodulite mudel
 
-#define HW_USE_HC05  0
 #define HW_USE_HC06  1
-#define HW_USE_HM10_HMSOFT 0
-#define HW_USE_HM10_OTHER   0
 
-#if HW_USE_HC05
-const uint8_t HC05_SETUP_ENABLE = 7;
+#if HW_USE_HC06
+const char *szEnd   = "\r\n";
+const char PROGMEM ATCmd[] = {"NAME\0\0"};
 #endif
 
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
-#define BUF_SIZE  100    
-#define EEPROM_START_ADDR 0  
+#define BUF_SIZE  100     // message buffer size
+#define EEPROM_START_ADDR 0  // EEPROM address for setup info
 
 #define DEBUG 0
 
@@ -51,67 +51,60 @@ const uint8_t HC05_SETUP_ENABLE = 7;
 #endif
 
 
-const uint16_t BT_COMMS_TIMEOUT = 1000; 
+//Effektide konstant määramine et pärast need oli võimalus kutsetada
 
-const char VT_START = '*';    
-const char VT_END   = '~';    
-const char VT_ESC   = '#';    
+const uint16_t BT_COMMS_TIMEOUT = 1000; // Protocol packet timeout period (start to end packet within this period)
 
-const char VT_SPEED   = 'S'; 
-const char VT_BRIGHT  = 'B'; 
-const char VT_RESET   = 'R'; 
-const char VT_FACSET  = 'F'; 
-const char VT_SAVE    = 'W'; 
-const char VT_MESSAGE = 'M'; 
-const char VT_JUSTIFY = 'J'; 
-const char VT_JUSTIFY1 = 'L'; 
-const char VT_INVERT  = 'V'; 
-const char VT_TPAUSE  = 'P'; 
-const char VT_IANIM   = 'I'; 
-const char VT_OANIM   = 'O'; 
+const char PKT_START = '*';    // protocol packet start character
+const char PKT_END   = '~';    // protocol packet end character
+const char PKT_ESC   = '#';    // protocol packet escape character
 
-const char VT_ACK  = 'Z';  
-const char VT_ERR_OK   = '0';  
-const char VT_ERR_TOUT = '1';  
-const char VT_ERR_CMD  = '2';  
-const char VT_ERR_DATA = '3';  
-const char VT_ERR_SEQ  = '4';  
+const char VT_CMD_SPEED   = 'S'; // number (ms delay between frames)
+const char VT_CMD_BRIGHT  = 'B'; // Toggle 0-15
+const char VT_CMD_RESET   = 'R'; // Reset the Arduino hardware
+const char VT_CMD_FACSET  = 'F'; // Factory settings
+const char VT_CMD_SAVE    = 'W'; // Write current setup to EEPROM
+const char VT_CMD_MESSAGE = 'M'; // Displayed message
+const char VT_CMD_JUSTIFY = 'J'; // Toggle L, C, R
 
+const char VT_CMD_TPAUSE  = 'P'; // number (ms delay between in and out)
+const char VT_CMD_IANIM   = 'I'; // In Animation - toggle through Animations table
+
+const char VT_CMD_ACK  = 'Z';  // Acknowledge command - data is PKT_ERR_* defines
+const char PKT_ERR_OK   = '0';  // no error/ok
+const char PKT_ERR_TOUT = '1';  // timeout - start detected with no end within timeout period
+const char PKT_ERR_CMD  = '2';  // command field not valid or unknown
+const char PKT_ERR_DATA = '3';  // data field not valid
+const char PKT_ERR_SEQ  = '4';  // generic protocol sequence error
 const char *szStart = "AT+";
 
-#if HW_USE_HC06
-const char *szEnd   = "\r\n";
-const char PROGMEM ATCmd[] = {"NAME\0\0"};
-#endif
+
+// Effektid
+// Effektid kutsutakse läbi MD_Parola.h kogum.
 
 
-
-const textPosition_t textPosition1[] = { PA_LEFT};
 const textPosition_t textPosition[] = { PA_LEFT, PA_CENTER, PA_RIGHT };
-const textEffect_t textEffect1[] = 
-{
-  PA_SCROLL_UP};
 const textEffect_t textEffect[] = 
 {
   PA_PRINT, PA_SCROLL_UP, PA_SCROLL_LEFT, PA_SCROLL_RIGHT, PA_SCROLL_DOWN,
 #if ENA_SCR_DIA
   PA_SCROLL_UP_LEFT, PA_SCROLL_UP_RIGHT, PA_SCROLL_DOWN_LEFT, PA_SCROLL_DOWN_RIGHT,
-#endif 
+#endif // ENA_SCR_DIA
 #if ENA_WIPE
   PA_WIPE, PA_WIPE_CURSOR,
-#endif  
+#endif  // ENA_WIPES
 #if ENA_OPNCLS
   PA_OPENING, PA_OPENING_CURSOR, PA_CLOSING, PA_CLOSING_CURSOR, 
-#endif 
+#endif // ENA_OPNCLS
 #if ENA_GROW
   PA_GROW_UP, PA_GROW_DOWN, 
-#endif 
+#endif // ENA_GROW
 #if ENA_MISC
   PA_SLICE, PA_MESH, PA_FADE, PA_DISSOLVE, PA_BLINDS, PA_RANDOM,
-#endif 
+#endif //ENA_MISC
 #if ENA_SCAN
   PA_SCAN_HORIZ, PA_SCAN_VERT,
-#endif 
+#endif // ENA_SCAN
 };
 
 
@@ -138,11 +131,10 @@ struct globalData
   uint8_t align;        
 
   uint8_t intensity;    
-  bool bInvert;        
+  bool bInvert;         
 
   char msg[BUF_SIZE+1]; 
 } G;
-
 
 char newMessage[BUF_SIZE+1] = { '\0' };
 bool newMessageAvailable = false;
@@ -222,7 +214,7 @@ bool BT_getATResponse(char* resp, uint8_t lenBuf)
 void BT_sendACK(char resp)
 
 {
-  static char msg[] = { VT_START, VT_ACK, VT_ERR_OK, VT_END, '\n', '\0' };
+  static char msg[] = { PKT_START, VT_CMD_ACK, PKT_ERR_OK, PKT_END, '\n', '\0' };
   msg[2] = resp;
   PRINT("\nResp: ", msg);
   BTChan.print(msg);
@@ -240,14 +232,6 @@ void BT_begin(void)
   PRINT("\nStart BT connection at ", BAUD);
   BTChan.begin(BAUD);
 
-#if HW_USE_HC05
-
-  pinMode(HC05_SETUP_ENABLE, OUTPUT);
-  digitalWrite(HC05_SETUP_ENABLE, HIGH);
-  delay(10);   
-  digitalWrite(HC05_SETUP_ENABLE, LOW);
-#endif
-
 
   do
   {
@@ -257,7 +241,7 @@ void BT_begin(void)
                 strlen(BT_NAME) + strlen(szEnd) + 1) * sizeof(char));
     strcpy(sz, szStart);
     strcat(sz, szCmd);
-    if (i == 0) 
+    if (i == 0)  
       strcat(sz, BT_NAME);
     strcat(sz, szEnd);
     BTChan.print(sz);
@@ -265,7 +249,6 @@ void BT_begin(void)
 
     free(sz);
     i++;
-
     if (!fLast)
     {
       if (!BT_getATResponse(szResp, ARRAY_SIZE(szResp)))
@@ -281,7 +264,7 @@ void BT_begin(void)
 
 uint8_t BT_executeCommand(uint8_t cmd, char *pd)
 {
-  uint8_t sts = VT_ERR_OK;  
+  uint8_t sts = PKT_ERR_OK;  
 
   PRINT("\nexecuting ", (char)cmd);
   PRINT(" with '", pd);
@@ -289,65 +272,51 @@ uint8_t BT_executeCommand(uint8_t cmd, char *pd)
 
   switch (cmd)
   {
-  case VT_RESET:
+  case VT_CMD_RESET:
     hwReset();
     break;
 
-  case VT_FACSET:
+  case VT_CMD_FACSET:
     readGlobal(true);
     PRINTS("\nCMD Factory Settings");
     break;
 
-  case VT_BRIGHT:
+  case VT_CMD_BRIGHT:
+    G.intensity = (G.intensity + 1) % (MAX_INTENSITY + 1);
+    PRINT("\nCMD Brightness ", G.intensity);
+    break;
 
-
-  case VT_IANIM:
+  case VT_CMD_IANIM:
     G.effectI = (G.effectI + 1) % ARRAY_SIZE(textEffect);
     PRINT("\nCMD In Animation ", G.effectI);
     break;
 
-  case VT_OANIM:
-    G.effectO = (G.effectO + 1) % ARRAY_SIZE(textEffect);
-    PRINT("\nCMD Out Animation ", G.effectO);
-    break;
-
-
-  case VT_INVERT:
-    G.bInvert = !P.getInvert();
-    PRINT("\nCMD Invert ", G.bInvert ? "on" : "off");
-    break;
-
-case VT_JUSTIFY1:
-     G.effectO = (G.effectO + 1) % ARRAY_SIZE(textEffect1);
-    PRINT("\nCMD Out Animation ", G.effectO);
-    break;
-
-  case VT_JUSTIFY:
+  case VT_CMD_JUSTIFY:
     G.align = (G.align + 1) % ARRAY_SIZE(textPosition);
     PRINT("\nCMD Text Align ", G.align);
     break;
 
-  case VT_SAVE:
+  case VT_CMD_SAVE:
     writeGlobal();
     PRINTS("\nCMD Save");
     break;
 
-  case VT_MESSAGE:
+  case VT_CMD_MESSAGE:
     strcpy(newMessage, pd);
     newMessageAvailable = true;
     PRINT("\nCMD Message '", newMessage); PRINTS("'");
     break;
 
-  case VT_SPEED:
-  case VT_TPAUSE:
+  case VT_CMD_SPEED:
+  case VT_CMD_TPAUSE:
   {
       int16_t v = atoi(pd);
 
       if (v < 0 || v > 10000)
-        sts = VT_ERR_DATA;
+        sts = PKT_ERR_DATA;
       else
       {
-        if (cmd == VT_SPEED)
+        if (cmd == VT_CMD_SPEED)
         {
           G.scrollSpeed = v;
           PRINT("\nCMD Speed ", v);
@@ -362,13 +331,12 @@ case VT_JUSTIFY1:
     break;
 
   default:
-    sts = VT_ERR_CMD;
+    sts = PKT_ERR_CMD;
     PRINT("CMD Error - ", cmd);
     break;
   }
 
-  
-  newConfigAvailable = (sts == VT_ERR_OK && cmd != VT_MESSAGE);
+  newConfigAvailable = (sts == PKT_ERR_OK && cmd != VT_CMD_MESSAGE);
 
   return(sts);
 }
@@ -383,29 +351,30 @@ void BT_getCommand(void)
   static char cmd = '\0';
   static bool prevEsc, inEsc = false;
 
- 
   if (state != ST_IDLE)
   {
     if (millis() - timeStart >= BT_COMMS_TIMEOUT)
     {
-      BT_sendACK(VT_ERR_TOUT);
+      BT_sendACK(PKT_ERR_TOUT);
       timeStart = 0;
       state = ST_IDLE;
     }
   }
 
+ 
   if (BTChan.available())
   {
     char ch = BTChan.read();
 
-    
+  
     prevEsc = inEsc;
-    inEsc = (ch == VT_ESC && !prevEsc);
+    inEsc = (ch == PKT_ESC && !prevEsc);
 
+ 
     switch (state)
     {
     case ST_IDLE:  
-      if (!prevEsc && ch == VT_START)
+      if (!prevEsc && ch == PKT_START)
       {
         PRINT("\nPkt Srt ", ch);
         state = ST_CMD;
@@ -421,44 +390,41 @@ void BT_getCommand(void)
 
       switch (ch)
       {
-      case VT_RESET:
-      case VT_FACSET:
-      case VT_BRIGHT:
-      case VT_IANIM:
-      case VT_OANIM:
-      case VT_INVERT:
-      case VT_JUSTIFY:
-      case VT_JUSTIFY1:
-      case VT_SAVE:
-      case VT_MESSAGE:
-      case VT_SPEED:
-      case VT_TPAUSE:
+      case VT_CMD_RESET:
+      case VT_CMD_FACSET:
+      case VT_CMD_BRIGHT:
+      case VT_CMD_IANIM:
+      case VT_CMD_JUSTIFY:
+      case VT_CMD_SAVE:
+      case VT_CMD_MESSAGE:
+      case VT_CMD_SPEED:
+      case VT_CMD_TPAUSE:
         state = ST_DATA;
         break;
 
       default:
-        BT_sendACK(VT_ERR_CMD);
+        BT_sendACK(PKT_ERR_CMD);
         cmd = '\0';
         state = ST_IDLE;
         break;
       }
       break;
 
-    case ST_DATA: 
+    case ST_DATA:  
       if (countBuf >= BUF_SIZE) 
       {
         PRINTS("\nBuffer overflow");
-        BT_sendACK(VT_ERR_DATA);
+        BT_sendACK(PKT_ERR_DATA);
         state = ST_IDLE;
       }
-      else if (ch == VT_END && !prevEsc) 
+      else if (ch == PKT_END && !prevEsc) 
       {
         PRINT("\nPkt end @", countBuf);
         cBuf[countBuf] = '\0'; 
         BT_sendACK(BT_executeCommand(cmd, cBuf));
         state = ST_IDLE;
       }
-      else if (!inEsc)  
+      else if (!inEsc) 
       {
         PRINT("\nPkt cBuf[", countBuf); PRINT("]:", ch);
         cBuf[countBuf++] = ch;
@@ -467,7 +433,7 @@ void BT_getCommand(void)
 
     default:  
       state = ST_IDLE;
-      BT_sendACK(VT_ERR_SEQ);
+      BT_sendACK(PKT_ERR_SEQ);
       break;
     }
   }
@@ -490,7 +456,7 @@ void setup()
 
 void loop()
 {
-  
+ 
   BT_getCommand();
 
   
@@ -509,7 +475,6 @@ void loop()
     newConfigAvailable = false;
   }
 
-  
   if (newMessageAvailable)
   {
     PRINTS("\nSetting new message");
@@ -519,7 +484,7 @@ void loop()
     newMessageAvailable = false;
   }
 
-  
+ 
   if (P.displayAnimate())
     P.displayReset();
 }
