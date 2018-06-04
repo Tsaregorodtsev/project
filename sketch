@@ -53,29 +53,29 @@ const char PROGMEM ATCmd[] = {"NAME\0\0"};
 
 //Effektide konstant määramine et pärast need oli võimalus kutsetada
 
-const uint16_t BT_COMMS_TIMEOUT = 1000; // Protocol packet timeout period (start to end packet within this period)
+const uint16_t BT_COMMS_TIMEOUT = 1000; 
 
-const char PKT_START = '*';    // protocol packet start character
-const char PKT_END   = '~';    // protocol packet end character
-const char PKT_ESC   = '#';    // protocol packet escape character
+const char VT_START = '*';    
+const char VT_END   = '~';    
+const char VT_ESC   = '#';    
 
-const char VT_CMD_SPEED   = 'S'; // number (ms delay between frames)
-const char VT_CMD_BRIGHT  = 'B'; // Toggle 0-15
-const char VT_CMD_RESET   = 'R'; // Reset the Arduino hardware
-const char VT_CMD_FACSET  = 'F'; // Factory settings
-const char VT_CMD_SAVE    = 'W'; // Write current setup to EEPROM
-const char VT_CMD_MESSAGE = 'M'; // Displayed message
-const char VT_CMD_JUSTIFY = 'J'; // Toggle L, C, R
+const char VT_CMD_SPEED   = 'S'; 
+const char VT_CMD_BRIGHT  = 'B'; 
+const char VT_CMD_RESET   = 'R'; 
+const char VT_CMD_FACSET  = 'F'; 
+const char VT_CMD_SAVE    = 'W'; 
+const char VT_CMD_MESSAGE = 'M'; 
+const char VT_CMD_JUSTIFY = 'J'; 
 
-const char VT_CMD_TPAUSE  = 'P'; // number (ms delay between in and out)
-const char VT_CMD_IANIM   = 'I'; // In Animation - toggle through Animations table
+const char VT_CMD_TPAUSE  = 'P'; 
+const char VT_CMD_IANIM   = 'I'; 
 
-const char VT_CMD_ACK  = 'Z';  // Acknowledge command - data is PKT_ERR_* defines
-const char PKT_ERR_OK   = '0';  // no error/ok
-const char PKT_ERR_TOUT = '1';  // timeout - start detected with no end within timeout period
-const char PKT_ERR_CMD  = '2';  // command field not valid or unknown
-const char PKT_ERR_DATA = '3';  // data field not valid
-const char PKT_ERR_SEQ  = '4';  // generic protocol sequence error
+const char VT_CMD_ACK  = 'Z';  
+const char VT_ERR_OK   = '0';  
+const char VT_ERR_TOUT = '1';  
+const char VT_ERR_CMD  = '2'; 
+const char VT_ERR_DATA = '3';  
+const char VT_ERR_SEQ  = '4';  
 const char *szStart = "AT+";
 
 
@@ -214,7 +214,7 @@ bool BT_getATResponse(char* resp, uint8_t lenBuf)
 void BT_sendACK(char resp)
 
 {
-  static char msg[] = { PKT_START, VT_CMD_ACK, PKT_ERR_OK, PKT_END, '\n', '\0' };
+  static char msg[] = { VT_START, VT_CMD_ACK, VT_ERR_OK, VT_END, '\n', '\0' };
   msg[2] = resp;
   PRINT("\nResp: ", msg);
   BTChan.print(msg);
@@ -264,7 +264,7 @@ void BT_begin(void)
 
 uint8_t BT_executeCommand(uint8_t cmd, char *pd)
 {
-  uint8_t sts = PKT_ERR_OK;  
+  uint8_t sts = VT_ERR_OK;  
 
   PRINT("\nexecuting ", (char)cmd);
   PRINT(" with '", pd);
@@ -313,7 +313,7 @@ uint8_t BT_executeCommand(uint8_t cmd, char *pd)
       int16_t v = atoi(pd);
 
       if (v < 0 || v > 10000)
-        sts = PKT_ERR_DATA;
+        sts = VT_ERR_DATA;
       else
       {
         if (cmd == VT_CMD_SPEED)
@@ -331,12 +331,12 @@ uint8_t BT_executeCommand(uint8_t cmd, char *pd)
     break;
 
   default:
-    sts = PKT_ERR_CMD;
+    sts = VT_ERR_CMD;
     PRINT("CMD Error - ", cmd);
     break;
   }
 
-  newConfigAvailable = (sts == PKT_ERR_OK && cmd != VT_CMD_MESSAGE);
+  newConfigAvailable = (sts == VT_ERR_OK && cmd != VT_CMD_MESSAGE);
 
   return(sts);
 }
@@ -355,7 +355,7 @@ void BT_getCommand(void)
   {
     if (millis() - timeStart >= BT_COMMS_TIMEOUT)
     {
-      BT_sendACK(PKT_ERR_TOUT);
+      BT_sendACK(VT_ERR_TOUT);
       timeStart = 0;
       state = ST_IDLE;
     }
@@ -368,13 +368,13 @@ void BT_getCommand(void)
 
   
     prevEsc = inEsc;
-    inEsc = (ch == PKT_ESC && !prevEsc);
+    inEsc = (ch == VT_ESC && !prevEsc);
 
  
     switch (state)
     {
     case ST_IDLE:  
-      if (!prevEsc && ch == PKT_START)
+      if (!prevEsc && ch == VT_START)
       {
         PRINT("\nPkt Srt ", ch);
         state = ST_CMD;
@@ -403,7 +403,7 @@ void BT_getCommand(void)
         break;
 
       default:
-        BT_sendACK(PKT_ERR_CMD);
+        BT_sendACK(VT_ERR_CMD);
         cmd = '\0';
         state = ST_IDLE;
         break;
@@ -414,10 +414,10 @@ void BT_getCommand(void)
       if (countBuf >= BUF_SIZE) 
       {
         PRINTS("\nBuffer overflow");
-        BT_sendACK(PKT_ERR_DATA);
+        BT_sendACK(VT_ERR_DATA);
         state = ST_IDLE;
       }
-      else if (ch == PKT_END && !prevEsc) 
+      else if (ch == VT_END && !prevEsc) 
       {
         PRINT("\nPkt end @", countBuf);
         cBuf[countBuf] = '\0'; 
@@ -433,7 +433,7 @@ void BT_getCommand(void)
 
     default:  
       state = ST_IDLE;
-      BT_sendACK(PKT_ERR_SEQ);
+      BT_sendACK(VT_ERR_SEQ);
       break;
     }
   }
